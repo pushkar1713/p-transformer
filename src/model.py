@@ -38,7 +38,7 @@ class PositionalEncoding(nn.Module):
 
 class LayerNormalization(nn.Module):
     def __init__(self, eps : float = 10 ** -6):
-        super().__init()
+        super().__init__()
         self.eps = eps
         self.alpha = nn.Parameter(torch.ones(1))
         self.bias = nn.Parameter(torch.zeros(1))
@@ -51,7 +51,7 @@ class LayerNormalization(nn.Module):
 
 class FeedForward(nn.Module):
     def __init__(self, d_model : int, d_ff : int, dropout : float):
-        super().__init__
+        super().__init__()
         self.layer1 = nn.Linear(in_features=d_model, out_features=d_ff)
         self.dropout = nn.Dropout(dropout)
         self.layer2 = nn.Linear(in_features=d_ff, out_features=d_model)
@@ -61,7 +61,7 @@ class FeedForward(nn.Module):
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model : int, h : int, dropout : float):
-        super().__init()
+        super().__init__()
         self.d_model = d_model
         self.h = h
 
@@ -192,18 +192,18 @@ class Transformer(nn.Module):
     def encode(self, src, src_mask):
         src = self.src_embed(src)
         src = self.src_pos(src)
-        return self.encode(src, src_mask)
+        return self.encoder(src, src_mask)
 
     def decode(self, encoder_output, src_mask, tgt, tgt_mask):
         tgt = self.tgt_embed(tgt)
         tgt = self.tgt_pos(tgt)
+        return self.decoder(encoder_output, src_mask, tgt, tgt_mask)
 
-        return self.decode(encoder_output, src_mask, tgt, tgt_mask)
+    def project(self,x):
+        return self.projection_layer(x)
+    
 
-
-class build_transformer(nn.Module):
-    def __init__(self,src_vocab_size: int, tgt_vocab_size : int, src_seq_len : int, tgt_seq_len : int, d_model : int = 512, N : int =6, h : int = 8, dropout : float = 0.1, d_ff : int = 2048) -> Transformer:
-        super().__init__()
+def build_transformer(src_vocab_size: int, tgt_vocab_size : int, src_seq_len : int, tgt_seq_len : int, d_model : int = 512, N : int =6, h : int = 8, dropout : float = 0.1, d_ff : int = 2048) -> Transformer:
 
         # embeddings layer
         src_embed = InputEmbedding(d_model, src_vocab_size)
