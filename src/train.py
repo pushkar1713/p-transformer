@@ -22,7 +22,7 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
 
     encoder_output = model.encode(source, source_mask)
 
-    decoder_input = torch.empty(1,1).fill_(sos_idx).type(source).to(device)
+    decoder_input = torch.empty(1,1).fill_(sos_idx).type_as(source).to(device)
     while True:
         if decoder_input.size(1) == max_len:
             break
