@@ -17,3 +17,8 @@ wheels/
 .vscode/
 .wget-hsts
 .windsurf-server
+
+*.pt
+*.json
+runs/
+weights/

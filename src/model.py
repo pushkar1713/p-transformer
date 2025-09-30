@@ -29,12 +29,14 @@ class PositionalEncoding(nn.Module):
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
 
-        pe.unsqueeze(0) # pe.shape => (1, seq_length, d_model)
+        pe = pe.unsqueeze(0)
+        # print(pe.shape) # pe.shape => (1, seq_length, d_model)
 
         self.register_buffer("pe", pe)
 
     def forward(self,x):
-        x = x + (self.pe[:, :x.shape[1], :]).requires_grad(False)
+        x = x + (self.pe[:, :x.shape[1], :]).requires_grad_(False)
+        return self.dropout(x)
 
 class LayerNormalization(nn.Module):
     def __init__(self, eps : float = 10 ** -6):
@@ -47,7 +49,7 @@ class LayerNormalization(nn.Module):
         mean = x.mean(dim = -1, keepdim = True)
         std = x.std(dim = -1, keepdim = True)
         
-        return self.alpha * (x - mean / (std + self.eps))+ self.bias
+        return self.alpha * (x - mean) / (std + self.eps)+ self.bias
 
 class FeedForward(nn.Module):
     def __init__(self, d_model : int, d_ff : int, dropout : float):
@@ -86,16 +88,16 @@ class MultiHeadAttention(nn.Module):
             attention_score.masked_fill(mask == 0, -1e9)
         attention_score = attention_score.softmax(dim=-1)
         if dropout is not None :
-            attention_score.dropout(attention_score)
+            attention_score = dropout(attention_score)
         
         return (attention_score @ value), attention_score
 
 
 
-    def forward(self,x, q, k, v, mask):
+    def forward(self, q, k, v, mask):
         query = self.w_q(q)
         key = self.w_k(k)
-        value = self.w_k(v)
+        value = self.w_v(v)
 
         query = query.view(query.shape[0], query.shape[1], self.h, self.d_k).transpose(1,2)
         key = key.view(key.shape[0], key.shape[1], self.h, self.d_k).transpose(1,2)
@@ -103,7 +105,7 @@ class MultiHeadAttention(nn.Module):
 
         x, self.attention_score = MultiHeadAttention.Attention(query, key, value, mask, self.dropout)
 
-        x = x.transpose(1,2).contiguious().view(x.shape[0], -1 , self.h * self.d_k)
+        x = x.transpose(1,2).contiguous().view(x.shape[0], -1 , self.h * self.d_k)
 
         return self.w_o(x)
 
@@ -158,7 +160,7 @@ class DecoderBlock(nn.Module):
         return x
 
 
-class Decoder(nn.ModuleList):
+class Decoder(nn.Module):
     def __init__(self, layers : nn.ModuleList):
         super().__init__()
         self.layer = layers
@@ -194,10 +196,10 @@ class Transformer(nn.Module):
         src = self.src_pos(src)
         return self.encoder(src, src_mask)
 
-    def decode(self, encoder_output, src_mask, tgt, tgt_mask):
+    def decode(self, encoder_output : torch.Tensor, src_mask : torch.Tensor, tgt : torch.Tensor, tgt_mask : torch.Tensor):
         tgt = self.tgt_embed(tgt)
         tgt = self.tgt_pos(tgt)
-        return self.decoder(encoder_output, src_mask, tgt, tgt_mask)
+        return self.decoder(tgt, encoder_output, src_mask, tgt_mask)
 
     def project(self,x):
         return self.projection_layer(x)

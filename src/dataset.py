@@ -22,7 +22,7 @@ class BilingualDataset(Dataset):
 
     def __getitem__(self, index):
         src_target_pair = self.ds[index]
-        src_text = src_target_pair["traslation"][self.src_lang]
+        src_text = src_target_pair["translation"][self.src_lang]
         tgt_text = src_target_pair["translation"][self.tgt_lang]
 
         enc_input_tokens = self.tokenizer_src.encode(src_text).ids
@@ -60,8 +60,8 @@ class BilingualDataset(Dataset):
         return {
             "encoder_input":encoder_input,
             "decoder_input" : decoder_input,
-            "encoder_mask" : (encoder_input != self.pad).unsqueeze(0).unsqueeze(0).int(),
-            "decoder_mask" : (decoder_input != self.pad).unsqueeze(0).unsqueeze(0).int() & casual_mask(decoder_input.size(0)),
+            "encoder_mask" : (encoder_input != self.pad_token).unsqueeze(0).unsqueeze(0).int(),
+            "decoder_mask" : (decoder_input != self.pad_token).unsqueeze(0).unsqueeze(0).int() & casual_mask(decoder_input.size(0)),
             "label" : label,
             "src_text": src_text,
             "target_text":tgt_text
