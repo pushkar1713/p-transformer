@@ -51,7 +51,7 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
 
     with torch.no_grad():
         for batch in validation_ds:
-            count = +1
+            count += 1
             encoder_input = batch["encoder_input"].to(device)
             encoder_mask = batch["encoder_mask"].to(device)
 
