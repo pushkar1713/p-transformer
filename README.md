@@ -1,4 +1,32 @@
-## LOGBOOK
+# Transformer Implementation
+
+A simple implementation of the Transformer model introduced in the "Attention Is All You Need" paper.
+
+## Training
+
+- Framework: PyTorch
+- Hardware: NVIDIA A100 24GB GPU on Lightning AI
+- Architecture: Standard Transformer encoder-decoder
+
+## Testing
+
+To test the trained model using inference:
+
+1. Open the Jupyter notebook provided in the repository
+2. Load the trained model checkpoint
+3. Run inference examples through the notebook cells
+
+## References
+
+- Paper: [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
+- Tutorial by Umar Jamil:
+  - [Attention is all you need (Transformer) - Model explanation (including math), Inference and Training](https://youtu.be/bCz4OMemCcA)
+  - [Coding a Transformer from scratch on PyTorch, with full explanation, training and inference](https://youtu.be/ISNdQcPhsts)
+
+---
+
+<details>
+<summary>LOGBOOK</summary>
 
 ### 1. pytorch matmul
 
@@ -37,5 +65,7 @@
 - `d_k`: feature dimension per head, inner dimension that cancels in matmul.  
 
 ---
+
+</details>
 
 </details>
