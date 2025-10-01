@@ -85,7 +85,7 @@ class MultiHeadAttention(nn.Module):
         attention_score = (query @ key.transpose(-2, -1)) / math.sqrt(d_k)
 
         if mask is not None :
-            attention_score.masked_fill(mask == 0, -1e9)
+            attention_score = attention_score.masked_fill_(mask == 0, -1e9)
         attention_score = attention_score.softmax(dim=-1)
         if dropout is not None :
             attention_score = dropout(attention_score)
