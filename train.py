@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import random_split, Dataset, DataLoader
 from pathlib import Path
-from config import get_config, get_weights_file_path
+from config import get_config, get_weights_file_path, latest_weights_file_path
 from model import build_transformer
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -16,8 +16,8 @@ from tokenizers.trainers import WordLevelTrainer
 from tokenizers.pre_tokenizers import Whitespace
 from dataset import BilingualDataset, casual_mask
 
-def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_len, device):
-    sos_idx = tokenizer_src.token_to_id("[SOS]")
+def greedy_decode(model, source, source_mask, tokenizer_tgt, max_len, device):
+    sos_idx = tokenizer_tgt.token_to_id("[SOS]")
     eos_idx = tokenizer_tgt.token_to_id("[EOS]")
 
     encoder_output = model.encode(source, source_mask)
@@ -27,7 +27,7 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
         if decoder_input.size(1) == max_len:
             break
     
-        decoder_mask = casual_mask(decoder_input.size(1)).type_as(source_mask).to(device)
+        decoder_mask = casual_mask(decoder_input.size(1)).type_as(source_mask).to(device).int()
 
         out = model.decode(encoder_output, source_mask, decoder_input, decoder_mask)
 
@@ -41,7 +41,7 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
     return decoder_input.squeeze(0)
 
 
-def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, writer, num_example=2):
+def run_validation(model, validation_ds, tokenizer_tgt, max_len, device, print_msg, global_step, writer, num_example=2):
     model.eval()
     count = 0
 
@@ -57,7 +57,7 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
 
             assert encoder_input.size(0) == 1, "Batch size must be 1 for validation"
 
-            model_out = greedy_decode(model, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
+            model_out = greedy_decode(model, encoder_input, encoder_mask, tokenizer_tgt, max_len, device)
 
             source_text = batch["src_text"][0]
             target_text = batch["target_text"][0]
@@ -114,7 +114,7 @@ def get_or_build_trainer(config, ds, lang):
     return tokenizer
 
 def get_ds(config):
-    ds_raw = load_dataset("opus_books", f"{config["src_lang"]}-{config["tgt_lang"]}", split="train")
+    ds_raw = load_dataset("opus_books", f"{config['src_lang']}-{config['tgt_lang']}", split="train")
 
     tokenizer_src = get_or_build_trainer(config, ds_raw, config["src_lang"])
     tokenizer_tgt = get_or_build_trainer(config, ds_raw, config["tgt_lang"])
@@ -156,7 +156,7 @@ def train_model(config):
         print(f"Device name: {torch.cuda.get_device_name(device.index)}")
         print(f"Device memory: {torch.cuda.get_device_properties(device.index).total_memory / 1024 ** 3} GB")
 
-    Path(f"{config["datasource"]}_{config["model_folder"]}").mkdir(parents=True, exist_ok=True)
+    Path(f"{config['datasource']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
 
     train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config)
 
@@ -168,15 +168,20 @@ def train_model(config):
 
     initial_epoch = 0
     global_step = 0
-    preload = config["preload"]
 
-    if(preload):
-        model_filename = get_weights_file_path(config, config["preload"])
-        print(f"preloading model: {model_filename}")
+    preload = config['preload']
+
+    model_filename = latest_weights_file_path(config) if preload == 'latest' else get_weights_file_path(config, preload) if preload else None
+    if model_filename:
+        print(f'Preloading model {model_filename}')
         state = torch.load(model_filename)
-        initial_epoch = state["epoch"] + 1
+        model.load_state_dict(state['model_state_dict'])
+        initial_epoch = state['epoch'] + 1
         optim.load_state_dict(state['optimizer_state_dict'])
         global_step = state['global_step']
+    else:
+        print('No model to preload, starting from scratch')
+
 
     loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id("[PAD]"), label_smoothing=0.1).to(device)
 
@@ -213,7 +218,7 @@ def train_model(config):
 
             global_step += 1
             
-        run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
+        run_validation(model, val_dataloader, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
 
 
         model_filename = get_weights_file_path(config, f"{epoch:02d}")
